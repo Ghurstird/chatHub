@@ -1,0 +1,2 @@
+export const MATRIX_BASE_URL = "http://192.168.246.156:3000"; // 192.168.246.156 - 10.0.2.2 
+export const WEBSOCKET_BASE_URL = 'ws://192.168.246.156:3001'; // 192.168.246.156 - 10.0.2.2 
