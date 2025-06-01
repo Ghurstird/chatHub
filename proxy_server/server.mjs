@@ -12,6 +12,9 @@ app.use(bodyParser.json());
 const MATRIX_URL = 'http://localhost:8008';
 const clients = new Map();
 const websocketClients = new Map();
+const WHATSAPP_BOT_ID = '@whatsappbot:tanmatrix.local';
+const BLUESKY_BOT_ID = '@blueskybot:tanmatrix.local';
+
 
 function setupAutoJoinHandler(client, userId) {
   let joinQueue = Promise.resolve();
@@ -110,13 +113,11 @@ app.post('/register', async (req, res) => {
     await new Promise((resolve) => client.once('sync', resolve));
 
     const relayBotUserIds = [
+      '@whatsappbot:tanmatrix.local',
+      '@metabot:tanmatrix.local',
+      '@twitterbot:tanmatrix.local',
       '@telegrambot:tanmatrix.local',
       '@blueskybot:tanmatrix.local',
-      '@twitterbot:tanmatrix.local',
-      '@googlechatbot:tanmatrix.local',
-      '@gmessagesbot:tanmatrix.local',
-      '@metabot:tanmatrix.local',
-      '@whatsappbot:tanmatrix.local',
     ];
 
     const existingDMs = client.getRooms().filter((room) => {
@@ -228,23 +229,348 @@ app.post('/markAsRead', async (req, res) => {
     await client.sendReadReceipt(lastEvent);
     res.json({ success: true });
 
-    // const events = room.getLiveTimeline().getEvents();
-    // for (let i=0; i<events.length; i++) {
-    //   let event = events.at(i); 
-    //   if (!event) {
-    //     console.warn('Oda için son event bulunamadı.');
-    //     return res.status(400).json({ error: 'Son mesaj bulunamadı' });
-    //   }
-      
-    //   await client.sendReadReceipt(event);
-    //   res.json({ success: true });
-    // }
-
   } catch (err) {
     console.error('READ ERROR:', err);
     res.status(500).json({ error: 'Okundu olarak işaretleme başarısız', details: err.message });
   }
 });
+
+app.get('/accounts/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const client = clients.get(userId);
+  if (!client) return res.status(400).json({ error: 'Client not found' });
+
+  const rooms = client.getRooms();
+  const accounts = {};
+
+  for (const room of rooms) {
+    const members = room.getJoinedMembers();
+    const relayBot = members.find(m => /^@([a-z]+)bot:/.test(m.userId));
+    if (!relayBot) continue;
+
+    const match = relayBot.userId.match(/^@([a-z]+)bot:/);
+    if (!match) continue;
+
+    const platform = match[1]; // örn: whatsapp
+
+    const events = room.getLiveTimeline().getEvents();
+    let lastLoginMsgTime = -1;
+    let lastLogoutMsgTime = -1;
+    let username = null;
+
+    for (const ev of events) {
+      const ts = ev.getTs();
+      const body = ev.getContent()?.body;
+      if (typeof body !== 'string') continue;
+
+      const loginMatch = body.match(/Successfully logged in as (.+)/i);
+      if (loginMatch) {
+        lastLoginMsgTime = ts;
+        username = loginMatch[1].trim();
+      }
+
+      if (body.toLowerCase().includes('logged out')) {
+        lastLogoutMsgTime = ts;
+      }
+    }
+
+    if (lastLoginMsgTime > lastLogoutMsgTime && username) {
+      accounts[platform] = username;
+    }
+  }
+
+
+  res.json(accounts); // örn: { whatsapp: '+9050...', bluesky: 'ghurstird.bsky.social' }
+});
+
+app.post('/platform/whatsapp/init', async (req, res) => {
+  const { userId, accessToken, phoneNumber } = req.body;
+
+  try {
+    const client = sdk.createClient({ baseUrl: MATRIX_URL, accessToken, userId });
+    await client.startClient();
+    await new Promise(resolve => client.once('sync', resolve));
+
+    const dmRoom = client.getRooms().find(room =>
+      room.getMyMembership() === 'join' &&
+      room.getJoinedMembers().length == 2 && 
+      room.getJoinedMembers().some(m => m.userId === WHATSAPP_BOT_ID) 
+    );
+    if (!dmRoom) return res.status(400).json({ error: 'WhatsApp bot ile DM bulunamadı' });
+
+    await client.sendTextMessage(dmRoom.roomId, 'login phone');
+    await new Promise(r => setTimeout(r, 1000));
+    await client.sendTextMessage(dmRoom.roomId, phoneNumber);
+
+    const timeoutMs = 10000;
+    const start = Date.now();
+    let responded = false;  // ✅ yanıt kontrolü
+
+    const handler = (event, room) => {
+      if (room.roomId !== dmRoom.roomId || responded) return;
+
+      const body = event.getContent()?.body;
+      if (typeof body !== 'string') return;
+
+      if (body.match(/[A-Z0-9]{4}-[A-Z0-9]{4}/)) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        return res.json({ code: body });
+      }
+
+      if (body.toLowerCase().includes('invalid value') || body.toLowerCase().includes('must start with +')) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        return res.status(422).json({ error: 'Telefon numarası "+90" ile başlamalıdır.' });
+      }
+    };
+
+
+    client.on('Room.timeline', handler);
+
+    setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        return res.status(408).json({ error: 'Kod alınamadı' });
+      }
+    }, timeoutMs);
+
+  } catch (err) {
+    console.error('WhatsApp init hatası:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'WhatsApp başlatılamadı', details: err.message });
+    }
+  }
+});
+
+
+app.post('/platform/whatsapp/logout', async (req, res) => {
+  const { userId, accessToken } = req.body;
+
+  try {
+    const client = sdk.createClient({ baseUrl: MATRIX_URL, accessToken, userId });
+    await client.startClient();
+    await new Promise(resolve => client.once('sync', resolve));
+
+    const dmRoom = client.getRooms().find(room =>
+      room.getMyMembership() === 'join' &&
+      room.getJoinedMembers().length == 2 && 
+      room.getJoinedMembers().some(m => m.userId === WHATSAPP_BOT_ID) 
+    );
+
+    if (!dmRoom) return res.status(400).json({ error: 'WhatsApp bot ile DM bulunamadı' });
+
+    // logout komutunu gönder
+    await client.sendTextMessage(dmRoom.roomId, 'logout');
+
+    const timeoutMs = 10000;
+    const start = Date.now();
+
+    return new Promise((resolveFinal) => {
+      const handler = async (event, room) => {
+        if (room.roomId !== dmRoom.roomId) return;
+        const body = event.getContent()?.body;
+
+        if (typeof body === 'string') {
+          console.log('💬 Gelen mesaj: '+ body);
+
+          // login ID'yi yakala
+          const match = body.match(/\*\s+`(\d{9,})`\s+\(\+\d+\)\s+-\s+`CONNECTED`/);
+
+
+          if (match) {
+            const loginId = match[1];
+            client.removeListener('Room.timeline', handler);
+
+            // relay bota !wa logout komutunu gönder
+            await client.sendTextMessage(dmRoom.roomId, `!wa logout ${loginId}`);
+
+            const roomsToLeave = client.getRooms().filter(room => {
+              const nameIncludesWhatsApp = room.name?.toLowerCase().includes('(whatsapp)');
+              const members = room.getJoinedMembers();
+              const isRelayBotDM = members.length === 2 && members.some(m => m.userId === WHATSAPP_BOT_ID);
+              return nameIncludesWhatsApp && !isRelayBotDM;
+            });
+
+            for (const room of roomsToLeave) {
+              try {
+                await client.leave(room.roomId);
+                console.log(`🚪 Çıkıldı: ${room.roomId}`);
+              } catch (err) {
+                console.warn(`⚠️ Çıkılamadı: ${room.roomId}`, err.message);
+              }
+            }
+
+            // Sonucu beklemeden dönebiliriz ya da yeni bir dinleyici açabiliriz (şimdilik direkt dönelim)
+            return res.json({ success: true });
+          }
+        }
+
+        if (Date.now() - start > timeoutMs) {
+          client.removeListener('Room.timeline', handler);
+          return res.status(408).json({ error: 'Login ID yakalanamadı' });
+        }
+      };
+
+      client.on('Room.timeline', handler);
+
+      setTimeout(() => {
+        client.removeListener('Room.timeline', handler);
+        if (!res.headersSent) {
+          return res.status(408).json({ error: 'Zaman aşımı' });
+        }
+      }, timeoutMs);
+    });
+
+  } catch (err) {
+    console.error('WhatsApp logout hatası:', err.message);
+    res.status(500).json({ error: 'Çıkış hatası', details: err.message });
+  }
+});
+
+app.post('/platform/bluesky/init', async (req, res) => {
+  const { userId, accessToken, username, password } = req.body;
+
+  try {
+    const client = sdk.createClient({ baseUrl: MATRIX_URL, accessToken, userId });
+    await client.startClient();
+    await new Promise(resolve => client.once('sync', resolve));
+
+    const dmRoom = client.getRooms().find(room =>
+      room.getMyMembership() === 'join' &&
+      room.getJoinedMembers().length == 2 && 
+      room.getJoinedMembers().some(m => m.userId === BLUESKY_BOT_ID) 
+    );
+    if (!dmRoom) return res.status(400).json({ error: 'Bluesky bot ile DM bulunamadı' });
+
+    // Adımları sırayla gönder
+    await client.sendTextMessage(dmRoom.roomId, 'login');
+    await new Promise(r => setTimeout(r, 1000));
+    await client.sendTextMessage(dmRoom.roomId, 'bsky.social');
+    await new Promise(r => setTimeout(r, 1000));
+    await client.sendTextMessage(dmRoom.roomId, username);
+    await new Promise(r => setTimeout(r, 1000));
+    await client.sendTextMessage(dmRoom.roomId, password);
+
+    // Başarılı giriş mesajını dinle
+    const timeoutMs = 10000;
+    let responded = false;
+
+    const handler = (event, room) => {
+      if (room.roomId !== dmRoom.roomId || responded) return;
+
+      const body = event.getContent()?.body;
+      if (typeof body !== 'string') return;
+
+      if (body.includes('Successfully logged in as')) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        return res.json({ success: true });
+      }
+
+      if (body.toLowerCase().includes('failed to create session')) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        return res.status(401).json({ error: 'Bluesky giriş başarısız: Kullanıcı adı veya şifre hatalı.' });
+      }
+    };
+
+    client.on('Room.timeline', handler);
+
+    setTimeout(() => {
+      if (!responded) {
+        client.removeListener('Room.timeline', handler);
+        if (!res.headersSent) {
+          return res.status(408).json({ error: 'Bluesky login yanıtı zaman aşımına uğradı' });
+        }
+      }
+    }, timeoutMs);
+
+  } catch (err) {
+    console.error('Bluesky init hatası:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Bluesky hesabı eklenemedi', details: err.message });
+    }
+  }
+});
+
+app.post('/platform/bluesky/logout', async (req, res) => {
+  const { userId, accessToken } = req.body;
+  
+
+  try {
+    const client = sdk.createClient({ baseUrl: MATRIX_URL, accessToken, userId });
+    await client.startClient();
+    await new Promise(resolve => client.once('sync', resolve));
+
+    const dmRoom = client.getRooms().find(room =>
+      room.getMyMembership() === 'join' &&
+      room.getJoinedMembers().length === 2 &&
+      room.getJoinedMembers().some(m => m.userId === BLUESKY_BOT_ID)
+    );
+
+    if (!dmRoom) return res.status(400).json({ error: 'Bluesky bot ile DM bulunamadı' });
+
+    await client.sendTextMessage(dmRoom.roomId, 'logout');
+
+    const timeoutMs = 10000;
+    let responded = false;
+
+    const handler = async (event, room) => {
+      if (room.roomId !== dmRoom.roomId || responded) return;
+
+      const body = event.getContent()?.body;
+      console.log('💬 Gelen mesaj: '+ body);
+      if (typeof body !== 'string') return;
+
+      const match = body.match(/\*\s+`(did:[\w:]+)`\s+\((.+)\)\s+-\s+`CONNECTED`/);
+
+      if (match) {
+        responded = true;
+        const loginId = match[1];
+        client.removeListener('Room.timeline', handler);
+
+        await client.sendTextMessage(dmRoom.roomId, `!bsky logout ${loginId}`);
+        const roomsToLeave = client.getRooms().filter(room => {
+          const nameIncludesBluesky = room.name?.toLowerCase().includes('(bluesky)');
+          const members = room.getJoinedMembers();
+          const isRelayBotDM = members.length === 2 && members.some(m => m.userId === BLUESKY_BOT_ID);
+          return nameIncludesBluesky && !isRelayBotDM;
+        });
+
+
+        for (const room of roomsToLeave) {
+          try {
+            await client.leave(room.roomId);
+          } catch {}
+        }
+
+
+        return res.json({ success: true });
+      }
+    };
+
+    client.on('Room.timeline', handler);
+
+    setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        client.removeListener('Room.timeline', handler);
+        if (!res.headersSent) {
+          return res.status(408).json({ error: 'Login ID alınamadı (timeout)' });
+        }
+      }
+    }, timeoutMs);
+
+  } catch (err) {
+    console.error('Bluesky logout hatası:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Çıkış işlemi başarısız', details: err.message });
+    }
+  }
+});
+
 
 
 

@@ -8,6 +8,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import RoomListScreen from './screens/RoomListScreen';
 import ChatScreen from './screens/ChatScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import BottomTabNavigator from './navigation/BottomTabNavigator';
 
 
 
@@ -18,9 +19,10 @@ const MainNavigator = () => {
   
   return (
     <Stack.Navigator initialRouteName={session ? 'RoomList' : 'Login'}>
+      <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Giriş Yap" }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "Kayıt Ol" }} />
-      <Stack.Screen name="RoomList" component={RoomListScreen} options={{ title: 'Odalar' }} />
+      {/* <Stack.Screen name="RoomList" component={RoomListScreen} options={{ title: 'Odalar' }} /> */}
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Mesajlar' }} />
     </Stack.Navigator>
   );

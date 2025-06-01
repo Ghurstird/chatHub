@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SessionContext } from '../context/SessionContext';
 import api from '../services/api';
-import { WEBSOCKET_BASE_URL } from '../config/matrixConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const RoomListScreen = ({ navigation }) => {
@@ -23,23 +22,22 @@ const RoomListScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const loginAgain = async () => {
-  if (!session?.username || !session?.password) {
-    console.warn("⛔ Kullanıcı adı veya şifre yok, yeniden giriş yapılamaz.");
-    return;
-  }
+    if (!session?.username || !session?.password) {
+      console.warn("⛔ Kullanıcı adı veya şifre yok, yeniden giriş yapılamaz.");
+      return;
+    }
 
-  try {
-    const res = await api.post('/login', {
-      username: session.username,
-      password: session.password,
-    });
-    setSession({ ...res.data, username: session.username, password: session.password });
-    return res.data.userId;
-  } catch (err) {
-    console.error('Yeniden giriş başarısız:', err.message);
-  }
-};
-
+    try {
+      const res = await api.post('/login', {
+        username: session.username,
+        password: session.password,
+      });
+      setSession({ ...res.data, username: session.username, password: session.password });
+      return res.data.userId;
+    } catch (err) {
+      console.error('Yeniden giriş başarısız:', err.message);
+      }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -51,7 +49,14 @@ const RoomListScreen = ({ navigation }) => {
   const fetchRooms = async () => {
     try {
       const res = await api.get(`/rooms/${encodeURIComponent(session.userId)}`);
-      const sorted = res.data.sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0));
+      
+      const filtered = res.data.filter(room => {
+        
+        const roomName = room.name?.toLowerCase() || '';
+        return !roomName.includes("bridge bot") && (roomName.includes("(bluesky)") || roomName.includes("(telegram)") || roomName.includes("(twitter)") || roomName.includes("(whatsapp)"))
+      });
+
+      const sorted = filtered.sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0));
       setRooms(sorted);
     } catch (err) {
       console.error('Oda listesi alınamadı:', err.message);
@@ -60,25 +65,11 @@ const RoomListScreen = ({ navigation }) => {
     }
   };
 
-
   useEffect(() => {
     if (!session?.userId) return;
     fetchRooms();
-
-    // const ws = new WebSocket(WEBSOCKET_BASE_URL);
-    // ws.onopen = () => {
-    //   ws.send(JSON.stringify({ userId: session.userId }));
-    // };
-    // ws.onmessage = (e) => {
-    //   const data = JSON.parse(e.data);
-    //   if (data.type === 'room_update') {
-    //     console.log('🆕 Yeni oda güncellemesi geldi. Liste yenileniyor...');
-    //     handleRefresh();
-    //   }
-    // };
-
     
-    // 🕒 Her 10 saniyede bir fetchRooms çağır
+    // 🕒 Her 3 saniyede bir fetchRooms çağır
     const intervalId = setInterval(() => {
       console.log('🔄 3 saniyelik periyodik oda güncellemesi');
       fetchRooms();
@@ -86,14 +77,11 @@ const RoomListScreen = ({ navigation }) => {
 
     return () => {
       clearInterval(intervalId); // component unmount olunca temizle
-      // ws.close();
+
     }  
   }, [session.userId]);
 
-  const handleLogout = () => {
-    logout();
-    navigation.replace('Login');
-  };
+  
 
   const getPlatformIcon = (roomInfo) => {
     const source = `${roomInfo.name} ${roomInfo.roomId}`.toLowerCase();
@@ -101,8 +89,6 @@ const RoomListScreen = ({ navigation }) => {
     if (source.includes('telegram')) return require('../assets/telegram.png');
     if (source.includes('bluesky')) return require('../assets/bluesky.png');
     if (source.includes('twitter')) return require('../assets/twitter.png');
-    if (source.includes('google chat')) return require('../assets/googlechat.png');
-    if (source.includes('google message') || source.includes('gmessages')) return require('../assets/gmessages.png');
     if (source.includes('meta')) return require('../assets/meta.png');
     if (source.includes('instagram')) return require('../assets/instagram.png');
     if (source.includes('facebook')) return require('../assets/facebook.png');
@@ -115,7 +101,9 @@ const RoomListScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={styles.roomItem}
-        onPress={() => navigation.navigate('Chat', { roomId: item.roomId, roomName: item.name})}
+        onPress={() => {
+          return navigation.navigate('Chat', { roomId: item.roomId, roomName: item.name})
+        }}
       >
         {icon && <Image source={icon} style={styles.icon} />}
         <View style={styles.roomContent}>
@@ -141,7 +129,6 @@ const RoomListScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Button title="Çıkış Yap" onPress={handleLogout} color="red" />
       <FlatList
         data={rooms}
         keyExtractor={(item) => item.roomId}

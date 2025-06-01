@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SessionContext } from '../context/SessionContext';
 import api from '../services/api';
 
@@ -7,17 +7,24 @@ const RegisterScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { setSession } = useContext(SessionContext);
+  const [loading, setLoading] = useState(false);
+
 
   const handleRegister = async () => {
+    setLoading(true);
     try {
       const res = await api.post('/register', { username, password });
       setSession(res.data);
-      Alert.alert('Kayıt Olma Başarılı!');
-      navigation.replace('Login'); // Kullanıcı şimdi login yapacak
+      Alert.alert("Kayıt olma işlemi başarılı !")
+      navigation.replace('Login');
     } catch (err) {
       Alert.alert('Hata', err.response?.data?.error || err.message);
+    } finally {
+      setLoading(false);
+      
     }
   };
+
 
   return (
     <KeyboardAvoidingView
@@ -31,7 +38,11 @@ const RegisterScreen = ({ navigation }) => {
       <View style={{width: "100%"}}>
         <TextInput placeholder='Kullanıcı Adı' style={styles.input} onChangeText={setUsername} />
         <TextInput placeholder="Şifre" style={styles.input} secureTextEntry onChangeText={setPassword} />
-        <Button title="Kayıt Ol" onPress={handleRegister} />
+        {loading ? (
+          <ActivityIndicator size="large" color="#007bff" />
+        ) : (
+          <Button title="Kayıt Ol" onPress={handleRegister} />
+        )}
         <TouchableOpacity onPress={() => navigation.replace('Login')}>
           <Text style={styles.linkText}>
             Zaten hesabın var mı? <Text style={styles.linkHighlight}>O zaman giriş yap</Text>

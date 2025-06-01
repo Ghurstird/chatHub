@@ -1,6 +1,6 @@
 // ✅ LoginScreen.js (username + password session'a kaydedilir)
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ActivityIndicator} from 'react-native';
 import { SessionContext } from '../context/SessionContext';
 import api from '../services/api';
 
@@ -8,17 +8,23 @@ const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { setSession } = useContext(SessionContext);
+  const [loading, setLoading] = useState(false);
+
 
   const handleLogin = async () => {
+    setLoading(true);
     try {
       const res = await api.post('/login', { username, password });
       setSession({ ...res.data, username, password });
-      Alert.alert('Giriş Yapma Başarılı!');
-      navigation.replace('RoomList');
+      navigation.replace('Home');
+
     } catch (err) {
       Alert.alert('Hata', err.response?.data?.error || err.message);
+    } finally {
+      setLoading(false);
     }
   };
+
 
   return (
     <KeyboardAvoidingView
@@ -34,7 +40,11 @@ const LoginScreen = ({ navigation }) => {
           <TextInput placeholder="Şifre" style={styles.input} secureTextEntry onChangeText={setPassword} value={password} />
         </View>
         <View>
-          <Button title="Giriş Yap" onPress={handleLogin} />
+          {loading ? (
+            <ActivityIndicator size="large" color="#007bff" />
+          ) : (
+            <Button title="Giriş Yap" onPress={handleLogin} />
+          )}
         </View>
         <TouchableOpacity onPress={() => navigation.replace('Register')}>
           <Text style={styles.linkText}>

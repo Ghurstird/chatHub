@@ -38,7 +38,7 @@ const formatTime = (timestamp) => {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
-const ChatScreen = ({ route }) => {
+const ChatScreen = ({ navigation, route }) => {
   const { roomId, roomName} = route.params;
   const { session } = useContext(SessionContext);
   const [messages, setMessages] = useState([]);
@@ -95,7 +95,7 @@ const ChatScreen = ({ route }) => {
     }
   };
 
-  
+
   useEffect(() => {
     fetchMessages().then(markAsRead);
     
