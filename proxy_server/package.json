@@ -1,0 +1,27 @@
+{
+  "name": "matrix-proxy-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "expo-server-sdk": "^3.15.0",
+    "express": "^5.1.0",
+    "matrix-js-sdk": "^37.6.0",
+    "nodemon": "^3.1.10",
+    "react-native-webview": "^13.14.1",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "jest": "^30.0.0",
+    "supertest": "^7.1.1"
+  }
+}

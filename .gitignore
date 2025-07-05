@@ -1,0 +1,28 @@
+
+# Node dependencies
+node_modules/
+
+# Expo cache
+.expo/
+
+# Build artifacts
+/build
+/dist
+/android/app/build
+/ios/build
+
+# Keystores
+*.keystore
+
+# Sensitive config files
+google-services.json
+chathub-*.json
+
+# Environment variables
+.env
+
+# OS-specific
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

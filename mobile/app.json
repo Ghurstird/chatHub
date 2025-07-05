@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "ChatHub",
+    "slug": "chathub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo1.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/logo-text.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo1.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.ghurstird.matrixmobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4d02dc3d-0d1c-4098-b706-9654a1fa38d3"
+      }
+    },
+    "web": {
+      "favicon": "./assets/logo1.png"
+    }
+  }
+}
