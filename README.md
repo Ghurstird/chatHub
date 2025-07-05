@@ -12,7 +12,7 @@ ChatHub, WhatsApp, Telegram, Twitter, Instagram ve Bluesky gibi çeşitli platfo
 
 ## Uygulama İçi Görüntüler
 
-Uygulamanın arayüzünü ve temel özelliklerini gösteren ekran görüntüleri için lütfen projenin kök dizininde bulunan `uygulama_goruntuleri.pdf` dosyasını inceleyin.
+Uygulamanın arayüzünü ve temel özelliklerini gösteren ekran görüntüleri için lütfen projenin kök dizininde bulunan `ChatHub.pdf` dosyasını inceleyin.
 
 ## Teknolojiler
 
