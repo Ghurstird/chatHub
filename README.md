@@ -10,6 +10,10 @@ ChatHub, WhatsApp, Telegram, Twitter, Instagram ve Bluesky gibi çeşitli platfo
 - **Anlık Bildirimler:** Yeni mesajlar için gerçek zamanlı bildirimler alın.
 - **Medya Desteği:** Resim, video ve sesli mesajlar gönderip alın.
 
+## Uygulama İçi Görüntüler
+
+Uygulamanın arayüzünü ve temel özelliklerini gösteren ekran görüntüleri için lütfen projenin kök dizininde bulunan `uygulama_goruntuleri.pdf` dosyasını inceleyin.
+
 ## Teknolojiler
 
 - **Mobil Uygulama:** React Native (Expo ile)
