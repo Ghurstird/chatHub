@@ -1,7 +1,7 @@
 
 # ChatHub - Birleşik Mesajlaşma Uygulaması
 
-ChatHub, WhatsApp, Telegram, Twitter, Instagram ve Bluesky gibi çeşitli platformlardaki sohbetlerinizi tek bir birleşik gelen kutusunda toplayan bir mobil uygulamadır. Matrix protokolü üzerine inşa edilmiştir; React Native (Expo) ile geliştirilmiş bir ön yüz ve platform köprüleriyle iletişim kuran bir Node.js proxy sunucusu kullanır.
+ChatHub, WhatsApp, Telegram, Twitter, Instagram ve Bluesky gibi çeşitli platformlardaki sohbetlerinizi tek bir birleşik gelen kutusunda toplayan bir mobil uygulamadır. Matrix protokolü üzerine inşa edilmiştir; React Native(Expo) ile geliştirilmiş bir ön yüz ve platform köprüleriyle iletişim kuran bir Node.js proxy sunucusu kullanır.
 
 ## Özellikler
 
